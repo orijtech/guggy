@@ -15,6 +15,7 @@
 package guggy_test
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -43,7 +44,7 @@ func TestSearch(t *testing.T) {
 	}
 
 	for i, tt := range tests {
-		res, err := client.Search(tt.req)
+		res, err := client.Search(context.Background(), tt.req)
 		if tt.wantErr {
 			if err == nil {
 				t.Errorf("#%d: expected non-nil error", i)

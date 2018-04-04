@@ -16,6 +16,7 @@ package guggy
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -25,6 +26,9 @@ import (
 	"reflect"
 	"strings"
 	"sync"
+
+	"go.opencensus.io/plugin/ochttp"
+	"go.opencensus.io/trace"
 
 	"github.com/orijtech/otils"
 )
@@ -46,7 +50,7 @@ func (c *Client) httpClient() *http.Client {
 	c.RUnlock()
 
 	return &http.Client{
-		Transport: rt,
+		Transport: &ochttp.Transport{Base: rt},
 	}
 }
 
@@ -145,7 +149,10 @@ var (
 	errBlankResponse = errors.New("server sent back a blank response")
 )
 
-func (c *Client) Search(req *Request) (*Response, error) {
+func (c *Client) Search(ctx context.Context, req *Request) (*Response, error) {
+	ctx, span := trace.StartSpan(ctx, "guggy/v2.(*Client).Search")
+	defer span.End()
+
 	if req == nil {
 		return nil, errBlankRequest
 	}
@@ -159,7 +166,8 @@ func (c *Client) Search(req *Request) (*Response, error) {
 	if err != nil {
 		return nil, err
 	}
-	slurp, _, err := c.doAuthAndHTTPReq(httpReq)
+	httpReq = httpReq.WithContext(ctx)
+	slurp, _, err := c.doAuthAndHTTPReq(ctx, httpReq)
 	if err != nil {
 		return nil, err
 	}
@@ -173,9 +181,13 @@ func (c *Client) Search(req *Request) (*Response, error) {
 	return resp, nil
 }
 
-func (c *Client) doAuthAndHTTPReq(req *http.Request) ([]byte, http.Header, error) {
+func (c *Client) doAuthAndHTTPReq(ctx context.Context, req *http.Request) ([]byte, http.Header, error) {
+	ctx, span := trace.StartSpan(ctx, "guggy/v2.(*Client).doAuthAndHTTPReq")
+	defer span.End()
+
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("apiKey", c._apiKey())
+	req = req.WithContext(ctx)
 	res, err := c.httpClient().Do(req)
 	if err != nil {
 		return nil, nil, err
