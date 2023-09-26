@@ -17,7 +17,7 @@ package guggy_test
 import (
 	"context"
 	"fmt"
-	"log"
+	"time"
 
 	"github.com/orijtech/guggy/v2"
 )
@@ -25,14 +25,17 @@ import (
 func Example_client_Search() {
 	client, err := guggy.NewClientFromEnv()
 	if err != nil {
-		log.Fatal(err)
+		panic(err)
 	}
 
-	res, err := client.Search(context.Background(), &guggy.Request{
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	res, err := client.Search(ctx, &guggy.Request{
 		Query: "What is the weather up there?",
 	})
 	if err != nil {
-		log.Fatal(err)
+		panic(err)
 	}
 
 	for i, gif := range res.Gifs {
@@ -42,4 +45,7 @@ func Example_client_Search() {
 	for i, sticker := range res.Stickers {
 		fmt.Printf("Sticker: %d MP4: %#v GIF: %#v\n", i, sticker.MP4, sticker.GIF)
 	}
+
+	// Output:
+	// WW
 }
